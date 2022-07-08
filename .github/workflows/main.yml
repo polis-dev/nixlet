@@ -1,0 +1,37 @@
+name: main
+concurrency: "${{ github.head_ref || github.run_id || github.ref_name || github.ref }}"
+on:
+  workflow_dispatch:
+  workflow_call:
+  push: { branches: [main] }
+  pull_request: 
+    branches: [main]
+    types:
+      - ready_for_review
+      - review_requested
+
+jobs:
+
+  check:
+    if: ${{ !contains('issues;pull_requests;', github.event_name) }}
+    runs-on: "ubuntu-latest"
+    steps:
+    - name: checkout the code
+      uses: actions/checkout@v3
+
+    - name: install nix
+      uses: ./.github/actions/install-nix
+      # with: { extra_nix_config: "access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}" }
+
+    - name: nix flake show
+      run: nix flake show 2>/dev/null
+
+    - name: nix flake metadata
+      run: nix flake metadata 2>/dev/null
+
+    - name: apply labels (if applicable)
+      uses: actions/labeler@v4
+      if: "${{ github.event_name == 'pull_requests' }}"
+      with:
+        repo-token: "${{ secrets.GITHUB_TOKEN }}"
+        sync-labels: true
